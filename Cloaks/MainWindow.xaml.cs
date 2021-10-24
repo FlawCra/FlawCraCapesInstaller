@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -19,10 +21,10 @@ namespace Cloaks
     public partial class MainWindow : Window
     {
         
-        public static readonly string version = "1.3";
-        public static readonly string versionLink = "https://raw.githubusercontent.com/SeizureSaladd/vers/main/vers.txt";
+        public static readonly string version = "1.0";
+        public static readonly string versionLink = "https://capes.flawcra.cc/installer/vers";
         public static string installerDownload = new WebClient()
-        { Proxy = ((IWebProxy)null) }.DownloadString("https://raw.githubusercontent.com/SeizureSaladd/vers/main/download.txt");
+        { Proxy = ((IWebProxy)null) }.DownloadString("https://capes.flawcra.cc/installer/download");
         
 
 
@@ -83,20 +85,49 @@ namespace Cloaks
             StoryBoard.Begin();
         }
 
+        private bool IsRunAsAdministrator()
+        {
+            var wi = WindowsIdentity.GetCurrent();
+            var wp = new WindowsPrincipal(wi);
+
+            return wp.IsInRole(WindowsBuiltInRole.Administrator);
+        }
 
         public MainWindow()
         {
+            if(!IsRunAsAdministrator())
+            {
+                var processInfo = new ProcessStartInfo(Assembly.GetExecutingAssembly().CodeBase);
+
+                // The following properties run the new process as administrator
+                processInfo.UseShellExecute = true;
+                processInfo.Verb = "runas";
+
+                // Start the new process
+                try
+                {
+                    Process.Start(processInfo);
+                }
+                catch (Exception)
+                {
+                    // The user did not allow the application to run as administrator
+                    MessageBox.Show("Sorry, this application must be run as Administrator.", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
+                // Shut down the current process
+                Application.Current.Shutdown();
+            }
             try
             {
                 string getVersion = new WebClient().DownloadString(versionLink);
                 if (version != getVersion.Trim())
                 {
-                    int num = (int)MessageBox.Show("This version of Cloaks+ is outdated. Please press OK to update.", "Cloaks+ | Update avaliable", MessageBoxButton.OK, MessageBoxImage.Error);
+                    int num = (int)MessageBox.Show("This version of FC Capes is outdated. Please press OK to update.", "FC Capes | Update avaliable", MessageBoxButton.OK, MessageBoxImage.Error);
                     string ok = Path.GetDirectoryName(Directory.GetCurrentDirectory());
-                    if (System.IO.File.Exists(ok + "\\Cloaks+.exe"))
-                        System.IO.File.Delete(ok + "\\Cloaks+.exe");
-                    new WebClient() { Proxy = ((IWebProxy)null) }.DownloadFile(MainWindow.installerDownload, ok + "\\Cloaks+.exe");
-                    ProcessStartInfo startInfo = new ProcessStartInfo(ok + "\\Cloaks+.exe");
+                    if (System.IO.File.Exists(ok + "\\FlawCraCapes.exe"))
+                        System.IO.File.Delete(ok + "\\FlawCraCapes.exe");
+                    new WebClient() { Proxy = ((IWebProxy)null) }.DownloadFile(MainWindow.installerDownload, ok + "\\FlawCraCapes.exe");
+                    ProcessStartInfo startInfo = new ProcessStartInfo(ok + "\\FlawCraCapes.exe");
                     startInfo.Verb = "runas";
                     System.Diagnostics.Process.Start(startInfo);
                     this.Close();
@@ -106,7 +137,7 @@ namespace Cloaks
             catch(Exception ohShitWhatNow)
             {
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("Cloaks+ has encountered an error trying to update. Please send the error message below to the Discord server.\n\n" + ohShitWhatNow.Message + "\nError source: " + ohShitWhatNow.Source, "Cloaks+ Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("FC Capes has encountered an error trying to update. Please send the error message below to the Discord server.\n\n" + ohShitWhatNow.Message + "\nError source: " + ohShitWhatNow.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
             }
             //i'm dumb as shit and there's a \n at the end
@@ -173,25 +204,25 @@ namespace Cloaks
                 try
                 {
                     string oldIP = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                    if (oldIP.Contains("159.203.120.188 s.optifine.net"))
+                    if (oldIP.Contains("161.35.130.99 s.optifine.net"))
                     {
                         this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
                         var hosts = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                        File.WriteAllLines(hosts, File.ReadLines(hosts).Where(l => l != "159.203.120.188 s.optifine.net").ToList());
+                        File.WriteAllLines(hosts, File.ReadLines(hosts).Where(l => l != "161.35.130.99 s.optifine.net").ToList());
                         string aaaaaa = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                        if (aaaaaa.Contains("161.35.130.99 s.optifine.net"))
+                        if (aaaaaa.Contains("178.18.243.41 s.optifine.net"))
                         {
                             this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                            MessageBox.Show("You already have Cloaks+", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Stop);
+                            MessageBox.Show("You already have FC Capes", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Stop);
                         }
                         else
                         {
                             using (StreamWriter bruh = File.AppendText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts")))
                             {
                                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
-                                bruh.WriteLine("\n161.35.130.99 s.optifine.net\n# THE LINE ABOVE WAS INSERTED BY CLOAKS+");
+                                bruh.WriteLine("\n178.18.243.41 s.optifine.net\n# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES");
                                 this.Activate();
-                                MessageBox.Show("Cloaks+ successfully installed!", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Information);
+                                MessageBox.Show("FC Capes successfully installed!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Information);
                                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
                             }
                         }
@@ -199,19 +230,19 @@ namespace Cloaks
                     else
                     {
                         string contents = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                        if (contents.Contains("161.35.130.99 s.optifine.net"))
+                        if (contents.Contains("178.18.243.41 s.optifine.net"))
                         {
                             this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                            MessageBox.Show("You already have Cloaks+", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Stop);
+                            MessageBox.Show("You already have FC Capes", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Stop);
                         }
                         else
                         {
                             using (StreamWriter hosts = File.AppendText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts")))
                             {
                                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
-                                hosts.WriteLine("\n161.35.130.99 s.optifine.net\n# THE LINE ABOVE WAS INSERTED BY CLOAKS+");
+                                hosts.WriteLine("\n178.18.243.41 s.optifine.net\n# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES");
                                 this.Activate();
-                                MessageBox.Show("Cloaks+ successfully installed!", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                                MessageBox.Show("FC Capes successfully installed!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Exclamation);
                                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
                             }
                         }
@@ -220,20 +251,20 @@ namespace Cloaks
                 catch (IOException shittyVariableName)
                 {
                     this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                    MessageBox.Show("Cloaks+ has encountered an error. Please send the error message below to the Discord server.\n\n" + shittyVariableName.Message + "\nError source: " + shittyVariableName.Source, "Cloaks+ Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + shittyVariableName.Message + "\nError source: " + shittyVariableName.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
                     this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
                 }
                 catch (Exception bruvIdkHowToSpellExecption)
                 {
                     this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                    MessageBox.Show("Cloaks+ has encountered an error. Please send the error message below to the Discord server.\n\n" + bruvIdkHowToSpellExecption.Message + "\nError source: " + bruvIdkHowToSpellExecption.Source, "Cloaks+ Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + bruvIdkHowToSpellExecption.Message + "\nError source: " + bruvIdkHowToSpellExecption.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
                     this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
                 }
             }
             else
             {
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("Please agree to the EULA!", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Please agree to the EULA!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Error);
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
             }
         }
@@ -243,27 +274,27 @@ namespace Cloaks
             try
             {
                 string hmm = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                if (hmm.Contains("161.35.130.99 s.optifine.net"))
+                if (hmm.Contains("178.18.243.41 s.optifine.net"))
                 {
                     var removeOld = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                    File.WriteAllLines(removeOld, File.ReadLines(removeOld).Where(l => l != "159.203.120.188 s.optifine.net").ToList());
+                    File.WriteAllLines(removeOld, File.ReadLines(removeOld).Where(l => l != "161.35.130.99 s.optifine.net").ToList());
                     string contents = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                    if (contents.Contains("161.35.130.99 s.optifine.net"))
+                    if (contents.Contains("178.18.243.41 s.optifine.net"))
                     {
                         this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
                         var hosts = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                        File.WriteAllLines(hosts, File.ReadLines(hosts).Where(l => l != "161.35.130.99 s.optifine.net").ToList());
+                        File.WriteAllLines(hosts, File.ReadLines(hosts).Where(l => l != "178.18.243.41 s.optifine.net").ToList());
                         string secondCheckThingy = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                        if (contents.Contains("# THE LINE ABOVE WAS INSERTED BY CLOAKS+"))
+                        if (contents.Contains("# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES"))
                         {
                             var removeComment = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                            File.WriteAllLines(removeComment, File.ReadLines(removeComment).Where(l => l != "# THE LINE ABOVE WAS INSERTED BY CLOAKS+").ToList());
-                            MessageBox.Show("Cloaks+ successfully uninstalled!", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Information);
+                            File.WriteAllLines(removeComment, File.ReadLines(removeComment).Where(l => l != "# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES").ToList());
+                            MessageBox.Show("FC Capes successfully uninstalled!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Information);
                             this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
                         }
                         else
                         {
-                            MessageBox.Show("Cloaks+ successfully uninstalled!", "Cloaks+", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MessageBox.Show("FC Capes successfully uninstalled!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Information);
                             this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
                         }
 
@@ -271,19 +302,19 @@ namespace Cloaks
                 }
                 else
                 {
-                    MessageBox.Show("Cloaks+ not detected!", "Cloaks+ Uninstaller", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("FC Capes not detected!", "FC Capes Uninstaller", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (IOException IOError)
             {
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("Cloaks+ has encountered an error. Please send the error message below to the Discord server.\n\n" + IOError.Message + "\nError source: " + IOError.Source, "Cloaks+ Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + IOError.Message + "\nError source: " + IOError.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
             }
             catch (Exception exeption) //idk how to spell lmao
             {
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("Cloaks+ has encountered an error. Please send the error message below to the Discord server.\n\n" + exeption.Message + "\nError source: " + exeption.Source, "Cloaks+ Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + exeption.Message + "\nError source: " + exeption.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
                 this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
             }
         }

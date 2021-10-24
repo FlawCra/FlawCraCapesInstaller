@@ -1,38 +1,21 @@
-# 📢 Cloaks+ Installer 
+# 📢 FlawCra Capeserver Installer 
 
   
 
-Current Installer used by Cloaks+
+Current Installer used by FlawCra Capeserver
 
   
 
 ## Credits
 
+The original Installer was made by Cloaks+
+
+*Note: I have explicit permission from the owner of Cloaks+*
+
 `zuhn.#1337`, `seizure salad#3820`, `Wowkster#0001`, and `binrate#5017`
-
   
 
-[![DigitalOcean Referral Badge](https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%201.svg)](https://www.digitalocean.com/?refcode=2538a60387c7&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge)
 
-  
-
-## 📃 Changelog
-
-The Cloaks+ Installer's last update has been released on *10/06/2021*
-
-  
-
-- Repository Refactor 🚜
-
-  
-
-## 🤝🏻 Contributing
-
-  
-
-As stated in the [Terms of Use](https://github.com/CloaksPlus/NewInstaller/blob/master/TOU.md), please contact a CloaksPlus™ developer is order to contribute to this repository.
-
-  
 
 ## ⚖ License
 
