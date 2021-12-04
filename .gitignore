@@ -1,4 +1,15 @@
+./git
+/git
+*git
+*.git
 
-Cloaks/bin/
-Cloaks/obj/
-.vs/Cloaks+/v16/.suo
+./vs
+/vs
+*vs
+*.vs
+
+/bin
+/Cloaks/bin
+
+/obj
+/Cloaks/obj

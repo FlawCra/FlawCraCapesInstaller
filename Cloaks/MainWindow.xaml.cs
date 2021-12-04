@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -9,158 +10,152 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media.Animation;
+using System.Windows.Media;
 using System.Windows.Shell;
-//LOOK NO MORE 32894729739287298174908 USING STATEMENTS! WOW!
+using System.Windows.Threading;
 
 namespace Cloaks
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
-        
-        public static readonly string version = "1.0";
-        public static readonly string versionLink = "https://capes.flawcra.cc/installer/vers";
-        public static string installerDownload = new WebClient()
-        { Proxy = ((IWebProxy)null) }.DownloadString("https://capes.flawcra.cc/installer/download");
-        
+        // Animation 
+        private readonly Animator animator = new Animator();
 
+        // Updater 
+        private static readonly string VERSION_LINK = "https://api.github.com/repos/FlawCra/FlawCraCapesInstaller/releases/latest";
 
-        Storyboard StoryBoard = new Storyboard();
-        TimeSpan duration = TimeSpan.FromMilliseconds(500);
-        TimeSpan duration2 = TimeSpan.FromMilliseconds(1000);
-        
-        private IEasingFunction Smooth
-        {
-            get;
-            set;
-        }
-        = new QuarticEase
-        {
-            EasingMode = EasingMode.EaseInOut
-        };
+        // Hosts
+        private static readonly string HOSTS_PATH = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts");
 
-        public void Fade(DependencyObject Object)
-        {
-            DoubleAnimation FadeIn = new DoubleAnimation()
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = new Duration(duration),
-            };
-            Storyboard.SetTarget(FadeIn, Object);
-            Storyboard.SetTargetProperty(FadeIn, new PropertyPath("Opacity", 1));
-            StoryBoard.Children.Add(FadeIn);
-            StoryBoard.Begin();
-        }
+        // Frame Link Colors
+        private static readonly Color HighlightColor = Color.FromArgb(0xFF, 0x43, 0x43, 0x43);
+        private static readonly Color DarkColor = Color.FromArgb(0xFF, 0x1C, 0x1C, 0x1C);
 
-        public void FadeOut(DependencyObject Object)
-        {
-            DoubleAnimation Fade = new DoubleAnimation()
-            {
-                From = 1.0,
-                To = 0.0,
-                Duration = new Duration(duration),
-            };
-            Storyboard.SetTarget(Fade, Object);
-            Storyboard.SetTargetProperty(Fade, new PropertyPath("Opacity", 1));
-            StoryBoard.Children.Add(Fade);
-            StoryBoard.Begin();
-        }
-
-        public void ObjectShift(DependencyObject Object, Thickness Get, Thickness Set)
-        {
-            ThicknessAnimation Animation = new ThicknessAnimation()
-            {
-                From = Get,
-                To = Set,
-                Duration = duration2,
-                EasingFunction = Smooth,
-            };
-            Storyboard.SetTarget(Animation, Object);
-            Storyboard.SetTargetProperty(Animation, new PropertyPath(MarginProperty));
-            StoryBoard.Children.Add(Animation);
-            StoryBoard.Begin();
-        }
-
-        private bool IsRunAsAdministrator()
-        {
-            var wi = WindowsIdentity.GetCurrent();
-            var wp = new WindowsPrincipal(wi);
-
-            return wp.IsInRole(WindowsBuiltInRole.Administrator);
-        }
+        AutoResetEvent updateHandle = new AutoResetEvent(false);
 
         public MainWindow()
         {
-            if(!IsRunAsAdministrator())
+            if (!IsAdministrator())
             {
-                var processInfo = new ProcessStartInfo(Assembly.GetExecutingAssembly().CodeBase);
-
-                // The following properties run the new process as administrator
-                processInfo.UseShellExecute = true;
-                processInfo.Verb = "runas";
-
-                // Start the new process
-                try
-                {
-                    Process.Start(processInfo);
-                }
-                catch (Exception)
-                {
-                    // The user did not allow the application to run as administrator
-                    MessageBox.Show("Sorry, this application must be run as Administrator.", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-
-                // Shut down the current process
-                Application.Current.Shutdown();
+                DialogueBox.Show("FC Capes", "You need to run this application as an administrator!", this);
+                Close();
+                Environment.Exit(0);
             }
+
             try
             {
-                string getVersion = new WebClient().DownloadString(versionLink);
-                if (version != getVersion.Trim())
+                InitializeComponent();
+                Activate();
+
+                // Create a thread
+                Thread newWindowThread = new Thread(new ThreadStart(() =>
                 {
-                    int num = (int)MessageBox.Show("This version of FC Capes is outdated. Please press OK to update.", "FC Capes | Update avaliable", MessageBoxButton.OK, MessageBoxImage.Error);
-                    string ok = Path.GetDirectoryName(Directory.GetCurrentDirectory());
-                    if (System.IO.File.Exists(ok + "\\FlawCraCapes.exe"))
-                        System.IO.File.Delete(ok + "\\FlawCraCapes.exe");
-                    new WebClient() { Proxy = ((IWebProxy)null) }.DownloadFile(MainWindow.installerDownload, ok + "\\FlawCraCapes.exe");
-                    ProcessStartInfo startInfo = new ProcessStartInfo(ok + "\\FlawCraCapes.exe");
-                    startInfo.Verb = "runas";
-                    System.Diagnostics.Process.Start(startInfo);
-                    this.Close();
-                    Environment.Exit(0);
+                    CheckForUpdate();
+                    Dispatcher.Run();
+                }));
+                newWindowThread.SetApartmentState(ApartmentState.STA);
+                newWindowThread.IsBackground = true;
+                newWindowThread.Start();
+
+                updateHandle.WaitOne();
+            }
+            catch (Exception ex)
+            {
+                ThrowError(ex, "trying to update");
+            }
+        }
+
+        private void ThrowError(Exception ex, string action)
+        {
+            DialogueBox.ShowError("FC Capes Error!", "FlawCra Capes has encountered an error while " + action + ". Please send the error message below to the Discord server.\n\n" + ex.Message + "\nError source: " + ex.Source, this);
+            Environment.Exit(0);
+        }
+
+        /* UPDATE CHECK */
+
+        private void CheckForUpdate()
+        {
+            // Remove Old Update Files
+            {
+                string fileName = Process.GetCurrentProcess().MainModule.FileName;
+                File.SetAttributes(fileName, FileAttributes.Normal);
+                if (File.Exists(fileName + "_"))
+                {
+                    File.SetAttributes(fileName + "_", FileAttributes.Normal);
+                    File.Delete(fileName + "_");
                 }
             }
-            catch(Exception ohShitWhatNow)
+
+            WebClient webClient = new WebClient();
+            webClient.Headers.Add("User-Agent", "Windows / FC Capes Installer");
+
+            dynamic githubResponse = JsonConvert.DeserializeObject(webClient.DownloadString(VERSION_LINK));
+
+            string githubVersion = "" + githubResponse.tag_name;
+
+            Version currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            Version latestVersion = new Version(githubVersion.Substring(0, 1) == "v" ? githubVersion.Substring(1) : githubVersion);
+
+            int versionComapre = currentVersion.CompareTo(latestVersion);
+
+            if (versionComapre > 0 || versionComapre == 0 || (bool)githubResponse.prerelease || (bool)githubResponse.draft)
             {
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("FC Capes has encountered an error trying to update. Please send the error message below to the Discord server.\n\n" + ohShitWhatNow.Message + "\nError source: " + ohShitWhatNow.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
+                updateHandle.Set();
+                return; // Dont update if the current version is higher (dev build) or equal (up to date)
             }
-            //i'm dumb as shit and there's a \n at the end
-            InitializeComponent();
-            this.Activate();
+
+            bool res = DialogueBox.Show("FC Capes | Update avaliable", "This version of FlawCra Capes is outdated. Please press OK to update.", this);
+
+            if (!res)
+            {
+                Environment.Exit(0);
+                return;
+            }
+
+            try
+            {
+                // Download New Version
+                string fileName = Process.GetCurrentProcess().MainModule.FileName;
+                File.SetAttributes(fileName, FileAttributes.Normal);
+                if (File.Exists(fileName + "_"))
+                {
+                    File.SetAttributes(fileName + "_", FileAttributes.Normal);
+                    File.Delete(fileName + "_");
+                }
+
+                File.Move(fileName, fileName + "_");
+
+                string tempName = Path.GetDirectoryName(fileName) + "\\temp.exe";
+                webClient.Proxy = null;
+                webClient.DownloadFile("" + githubResponse.assets[0].browser_download_url, tempName);
+                File.Move(tempName, fileName);
+
+                // Start new Process and Terminate the running one
+                ProcessStartInfo startInfo = new ProcessStartInfo(fileName) { Verb = "runas" };
+                Process.Start(startInfo);
+                Environment.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                ThrowError(ex, "trying to update");
+            }
         }
+
+        ///* ANIMATION */
 
         private void Cloaks_Loaded(object sender, RoutedEventArgs e)
         {
-            Fade(MainBorder);
-            Fade(TopBorder);
-            Fade(SelectFrame);
+            animator.Fade(MainBorder);
+            animator.Fade(TopBorder);
+            animator.Fade(SelectFrame);
 
-            ObjectShift(MainBorder, MainBorder.Margin, new Thickness(0, 0, 0, 0));
-            ObjectShift(TopBorder, TopBorder.Margin, new Thickness(-2, -2, -2, 0));
-            ObjectShift(SelectFrame, TopBorder.Margin, new Thickness(28, 30.5, 0, 0));
-            ObjectShift(HomeFrame, HomeFrame.Margin, new Thickness(124, 63, 19, 35));
-
+            Activate();
         }
+
+        /* WINDOW INTERACTIONS */
 
         private void TopBorder_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            //what is this drag code  h u h
             if (Mouse.LeftButton == MouseButtonState.Pressed)
             {
                 DragMove();
@@ -175,6 +170,10 @@ namespace Cloaks
             InstallFrame.Visibility = Visibility.Collapsed;
             CreditsFrame.Visibility = Visibility.Collapsed;
             CreditsFrame.Opacity = 0;
+
+            SideHomeButton.Background = new SolidColorBrush(HighlightColor);
+            InstallButtonSide.Background = new SolidColorBrush(DarkColor);
+            CreditsButtonSide.Background = new SolidColorBrush(DarkColor);
         }
 
         private void InstallFrame_Click(object sender, RoutedEventArgs e)
@@ -185,6 +184,10 @@ namespace Cloaks
             InstallFrame.Visibility = Visibility.Visible;
             CreditsFrame.Visibility = Visibility.Collapsed;
             CreditsFrame.Opacity = 0;
+
+            SideHomeButton.Background = new SolidColorBrush(DarkColor);
+            InstallButtonSide.Background = new SolidColorBrush(HighlightColor);
+            CreditsButtonSide.Background = new SolidColorBrush(DarkColor);
         }
 
         private void CreditsFrame_Click(object sender, RoutedEventArgs e)
@@ -195,157 +198,155 @@ namespace Cloaks
             InstallFrame.Opacity = 0;
             CreditsFrame.Visibility = Visibility.Visible;
             CreditsFrame.Opacity = 100;
+
+            SideHomeButton.Background = new SolidColorBrush(DarkColor);
+            InstallButtonSide.Background = new SolidColorBrush(DarkColor);
+            CreditsButtonSide.Background = new SolidColorBrush(HighlightColor);
         }
 
         private void InstallButton_Click(object sender, RoutedEventArgs e)
         {
-            if(chequeBox.IsChecked == true)
+            bool result = DialogueBox.ShowEULA(this);
+
+            if (!result)
             {
-                try
-                {
-                    string oldIP = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                    if (oldIP.Contains("161.35.130.99 s.optifine.net"))
-                    {
-                        this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
-                        var hosts = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                        File.WriteAllLines(hosts, File.ReadLines(hosts).Where(l => l != "161.35.130.99 s.optifine.net").ToList());
-                        string aaaaaa = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                        if (aaaaaa.Contains("178.18.243.41 s.optifine.net"))
-                        {
-                            this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                            MessageBox.Show("You already have FC Capes", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Stop);
-                        }
-                        else
-                        {
-                            using (StreamWriter bruh = File.AppendText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts")))
-                            {
-                                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
-                                bruh.WriteLine("\n178.18.243.41 s.optifine.net\n# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES");
-                                this.Activate();
-                                MessageBox.Show("FC Capes successfully installed!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Information);
-                                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        string contents = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                        if (contents.Contains("178.18.243.41 s.optifine.net"))
-                        {
-                            this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                            MessageBox.Show("You already have FC Capes", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Stop);
-                        }
-                        else
-                        {
-                            using (StreamWriter hosts = File.AppendText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts")))
-                            {
-                                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
-                                hosts.WriteLine("\n178.18.243.41 s.optifine.net\n# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES");
-                                this.Activate();
-                                MessageBox.Show("FC Capes successfully installed!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-                                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-                            }
-                        }
-                    }
-                }
-                catch (IOException shittyVariableName)
-                {
-                    this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                    MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + shittyVariableName.Message + "\nError source: " + shittyVariableName.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
-                    this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-                }
-                catch (Exception bruvIdkHowToSpellExecption)
-                {
-                    this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                    MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + bruvIdkHowToSpellExecption.Message + "\nError source: " + bruvIdkHowToSpellExecption.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
-                    this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-                }
+                // If Dialogue was canceled, do nothing
+                return;
             }
-            else
+
+            InstallProgress.Show("Installing", this);
+
+            // If Dialogue was successful try installing
+            taskBarItemInfo.ProgressState = TaskbarItemProgressState.Indeterminate;
+            try
             {
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("Please agree to the EULA!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Error);
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
+                InstallCloaks();
             }
+            catch (Exception ex)
+            {
+                ThrowError(ex, "installing");
+            }
+            taskBarItemInfo.ProgressState = TaskbarItemProgressState.None;
         }
 
         private void UninstallButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                string hmm = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                if (hmm.Contains("178.18.243.41 s.optifine.net"))
-                {
-                    var removeOld = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                    File.WriteAllLines(removeOld, File.ReadLines(removeOld).Where(l => l != "161.35.130.99 s.optifine.net").ToList());
-                    string contents = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                    if (contents.Contains("178.18.243.41 s.optifine.net"))
-                    {
-                        this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Indeterminate;
-                        var hosts = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                        File.WriteAllLines(hosts, File.ReadLines(hosts).Where(l => l != "178.18.243.41 s.optifine.net").ToList());
-                        string secondCheckThingy = File.ReadAllText("C:\\Windows\\System32\\drivers\\etc\\hosts");
-                        if (contents.Contains("# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES"))
-                        {
-                            var removeComment = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-                            File.WriteAllLines(removeComment, File.ReadLines(removeComment).Where(l => l != "# THE LINE ABOVE WAS INSERTED BY FLAWCRA CAPES").ToList());
-                            MessageBox.Show("FC Capes successfully uninstalled!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Information);
-                            this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-                        }
-                        else
-                        {
-                            MessageBox.Show("FC Capes successfully uninstalled!", "FC Capes", MessageBoxButton.OK, MessageBoxImage.Information);
-                            this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-                        }
-
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("FC Capes not detected!", "FC Capes Uninstaller", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                taskBarItemInfo.ProgressState = TaskbarItemProgressState.Indeterminate;
+                UninstallCloaks();
+                taskBarItemInfo.ProgressState = TaskbarItemProgressState.None;
             }
-            catch (IOException IOError)
+            catch (Exception ex)
             {
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + IOError.Message + "\nError source: " + IOError.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
-            }
-            catch (Exception exeption) //idk how to spell lmao
-            {
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.Error;
-                MessageBox.Show("FC Capes has encountered an error. Please send the error message below to the Discord server.\n\n" + exeption.Message + "\nError source: " + exeption.Source, "FC Capes Error!", MessageBoxButton.OK, MessageBoxImage.Error);
-                this.taskBarItemInfo1.ProgressState = TaskbarItemProgressState.None;
+                ThrowError(ex, "uninstalling");
             }
         }
 
-        private void EulaButton_Click(object sender, RoutedEventArgs e)
+        private async void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start("https://cloaksplus.com/terms.txt");
-        }
-
-        private async void Button_Click(object sender, RoutedEventArgs e)
-        {
-            FadeOut(MainBorder);
-            FadeOut(TopBorder);
-            FadeOut(SelectFrame);
-            //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            ObjectShift(MainBorder, MainBorder.Margin, new Thickness(49, 70, 49, 26));
-            ObjectShift(TopBorder, TopBorder.Margin, new Thickness(0, -28, 0, 0));
-            ObjectShift(SelectFrame, SelectFrame.Margin, new Thickness(-90, 79, 0, 0));
-            ObjectShift(HomeFrame, HomeFrame.Margin, new Thickness(101, 0, 199, 230));
-            await Task.Delay(1000);
-            Application.Current.Shutdown();
-            await Task.Delay(1000);
-            System.Windows.Forms.Application.Exit();
-            await Task.Delay(1000); //tried usin thread.sleep but it just didn't work lmao 
-            System.Windows.Forms.Application.ExitThread(); //zuhn the fuck is this code LMAO
+            animator.FadeOut(MainBorder);
+            animator.FadeOut(TopBorder);
+            animator.FadeOut(SelectFrame);
+            await Task.Delay(600);
             Environment.Exit(0);
         }
 
-        private void Button_Click_1(object sender, RoutedEventArgs e)
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
             WindowState = WindowState.Minimized;
+        }
+
+        /* LOGIC HELPERS */
+
+        private bool CloaksPlusExists()
+        {
+            try
+            {
+                return File.ReadAllText(HOSTS_PATH).Contains("178.18.243.41 s.optifine.net");
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private bool HostsIsReadonly()
+        {
+            FileInfo file = new FileInfo(HOSTS_PATH);
+            return file.IsReadOnly;
+        }
+
+        public static bool IsAdministrator()
+        {
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        private void RemoveAllInstallations()
+        {
+            // Filter our all lines with "s.optifine.net" (or old Cloaks+ content) and write the valid lines back
+            string OPTIFINE_URL = "s.optifine.net";
+            string OLD_CLOAKS_MARKER = "INSERTED BY CLOAKS+";
+            var hostsContent = File.ReadAllLines(HOSTS_PATH);
+            var validLines = hostsContent.Where(line => !(line.Contains(OPTIFINE_URL) || line.Contains(OLD_CLOAKS_MARKER)));
+            File.WriteAllLines(HOSTS_PATH, validLines);
+        }
+
+        /* PROGRAM LOGIC */
+
+        private void InstallCloaks()
+        {
+            // Check if the hosts file exists at all
+            if (!File.Exists(HOSTS_PATH))
+            {
+                File.WriteAllText(HOSTS_PATH, "\n178.18.243.41 s.optifine.net # LINE INSERTED BY FC CAPES");
+                DialogueBox.Show("FC Capes", "FlawCra Capes successfully installed!", this);
+                return;
+            }
+
+            if (HostsIsReadonly())
+            {
+                File.SetAttributes(HOSTS_PATH, FileAttributes.Normal);
+            }
+
+            string message = "FC Capessuccessfully installed!";
+
+            if (CloaksPlusExists())
+            {
+                message = "FC Capes installation was successfully repaired!";
+            }
+
+            RemoveAllInstallations();
+
+            // Append to the end of the file
+            using (StreamWriter hosts = File.AppendText(HOSTS_PATH))
+            {
+                hosts.WriteLine("\n178.18.243.41 s.optifine.net # LINE INSERTED BY FC CAPES");
+                DialogueBox.Show("FC Capes", message, this);
+            }
+            File.SetAttributes(HOSTS_PATH, FileAttributes.ReadOnly | FileAttributes.System);
+
+        }
+
+        private void UninstallCloaks()
+        {
+            InstallProgress.Show("Uninstalling", this);
+
+            if (!CloaksPlusExists())
+            {
+                DialogueBox.Show("Not Found", "FC Capes installation was not found on system.", this);
+                return;
+            }
+
+            if (HostsIsReadonly())
+            {
+                File.SetAttributes(HOSTS_PATH, FileAttributes.Normal);
+            }
+
+            RemoveAllInstallations();
+            DialogueBox.Show("FC Capes", "FC Capes successfully uninstalled!", this);
         }
     }
 }
