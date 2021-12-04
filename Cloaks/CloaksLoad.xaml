@@ -17,6 +17,5 @@
         Loaded="Cloaks_Loaded">
     <Grid>
         <Image x:Name="CloaksBG" HorizontalAlignment="Center" Height="190" Margin="236,210,236,0" VerticalAlignment="Center" Width="198" Source="Assets/logo_background.png"/>
-        <Image x:Name="CloaksText" HorizontalAlignment="Center" Height="150" Margin="260,55,260,195" VerticalAlignment="Center" Width="150" Source="Assets/logo_transparent.png"/>
     </Grid>
 </Window>

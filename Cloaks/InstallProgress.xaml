@@ -6,7 +6,7 @@
     
     x:Class="Cloaks.InstallProgress"
     mc:Ignorable="d"
-    Title="Cloaks+ Install Prompt" 
+    Title="FC Capes Install Prompt" 
     Topmost="False" 
     WindowStartupLocation="CenterScreen"
     WindowStyle="None" 
@@ -21,7 +21,7 @@
         <TaskbarItemInfo 
             x:Name="taskBarItemInfo" 
             ThumbnailClipMargin="0,0,0,0"
-            Description="Cloaks+ Message Box"
+            Description="FC Capes Message Box"
         ></TaskbarItemInfo>
     </Window.TaskbarItemInfo>
 
@@ -36,7 +36,7 @@
                 <Border x:Name="TopBorder" Style="{DynamicResource dialogueWindowTitleBar}" MouseDown="TopBorder_MouseDown">
                     <Grid>
                         <Label x:Name="Title" Content="" Style="{DynamicResource windowTitle}"/>
-                        <Image x:Name="Logo" Source="Assets/logo_transparent.png" Margin="2,0,0,1" HorizontalAlignment="Left" />
+                        <Image x:Name="Logo" Source="Assets/logo.png" Margin="2,0,0,1" HorizontalAlignment="Left" />
                     </Grid>
                 </Border>
 

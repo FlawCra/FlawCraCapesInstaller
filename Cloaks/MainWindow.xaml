@@ -37,7 +37,7 @@
                 <Border x:Name="TopBorder" Style="{DynamicResource windowTitleBar}" MouseDown="TopBorder_MouseDown">
                     <Grid Margin="-1,-1,1,1">
                         <Label x:Name="TopBorderCloaksMainLabel" Content="FlawCra Capes" Style="{DynamicResource windowTitle}"/>
-                        <Image x:Name="Logo" Source="Assets/logo_transparent.png" Margin="2,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <Image x:Name="Logo" Source="/Assets/logo.png" Margin="2,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         <Button Content="&#xE711;" Style="{DynamicResource windowButton}" Margin="0,0,0,0" Click="CloseButton_Click"/>
                         <Button Content="&#xE738;" Style="{DynamicResource windowButton}" Margin="0,0,32,0" Click="MinimizeButton_Click"/>
                     </Grid>
@@ -46,21 +46,11 @@
                 <Border x:Name="HomeFrame" Style="{DynamicResource frame}" >
                     <Grid Margin="0,0,-20,0">
                         <Image Style="{DynamicResource frameImage}"/>
-                        <Label Content="Cloaks+" Style="{DynamicResource frameTitle}"/>
+                        <Label Content="FC Capes" Style="{DynamicResource frameTitle}"/>
 
                         <Rectangle Style="{DynamicResource frameRule}" />
 
-                        <TextBlock Style="{DynamicResource frameText}" >
-                            Go to the Install tab in install Cloaks+ on your computer
-                            <LineBreak />
-                            <LineBreak />
-                            Recent Updates:
-                            <LineBreak />
-                            <LineBreak />
-                            • Massive code refactor
-                            <LineBreak />
-                            • Current version is v.1.4.3
-                        </TextBlock>
+                        <TextBlock Style="{DynamicResource frameText}" ><Run Text="Go to the Install tab in install FC Capes on your computer"/><LineBreak/><LineBreak/><Run Text="Recent Updates:"/><LineBreak/><LineBreak/><Run Text="• Massive code refactor"/><LineBreak/><Run Text="• Current version is v.1.4.3"/></TextBlock>
                     </Grid>
                 </Border>
 
@@ -118,7 +108,7 @@
 
         <Border x:Name="SelectFrame" Style="{StaticResource nav}">
             <Grid>
-                <Image Source="Assets/banner.png" Margin="10,10,10,286"/>
+                <Label Margin="10,10,10,286" Content="FC Capes" Style="{DynamicResource frameTitle}"/>
                 <Image Source="Assets/line.png" Margin="0,10,0,239"/>
 
                 <Button x:Name="SideHomeButton" Style="{StaticResource navButton}" Margin="0, -50, 0, 0" Click="HomeFrame_Click" Background="#434343">
@@ -142,7 +132,7 @@
                     </Grid>
                 </Button>
 
-                <Label Content="Cloaks+ v.1.4.3"  Style="{StaticResource navVersion}"  Margin="3, 0, 0, 3" Width="124" VerticalAlignment="Bottom"/>
+                <Label Content="FC Capes v.1.4.3"  Style="{StaticResource navVersion}"  Margin="3, 0, 0, 3" Width="124" VerticalAlignment="Bottom"/>
             </Grid>
         </Border>
     </Grid>

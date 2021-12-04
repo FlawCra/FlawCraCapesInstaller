@@ -48,7 +48,7 @@ namespace Cloaks
 
         public static bool ShowEULA(MainWindow main)
         {
-            DialogueBox w = new DialogueBox("Cloaks+ End User License Agreement", @"By clicking 'I Agree' below, you agree to the Cloaks+ End User License Agreement. To view the contents of the agreement, click the 'EULA' button below.", false, main, true);
+            DialogueBox w = new DialogueBox("FC Capes End User License Agreement", @"By clicking 'I Agree' below, you agree to the FC Capes End User License Agreement. To view the contents of the agreement, click the 'EULA' button below.", false, main, true);
             w.Activate();
             w.ShowDialog();
 

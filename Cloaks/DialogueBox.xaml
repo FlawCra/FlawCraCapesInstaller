@@ -6,7 +6,7 @@
     
     x:Class="Cloaks.DialogueBox"
     mc:Ignorable="d"
-    Title="Cloaks+ Message" 
+    Title="FC Capes Message" 
     Topmost="False" 
     WindowStartupLocation="CenterScreen"
     WindowStyle="None" 
@@ -21,7 +21,7 @@
         <TaskbarItemInfo 
             x:Name="taskBarItemInfo" 
             ThumbnailClipMargin="0,0,0,0"
-            Description="Cloaks+ Message Box"
+            Description="FC Capes Message Box"
         ></TaskbarItemInfo>
     </Window.TaskbarItemInfo>
 
@@ -36,7 +36,7 @@
                 <Border x:Name="TopBorder" Style="{DynamicResource dialogueWindowTitleBar}" MouseDown="TopBorder_MouseDown">
                     <Grid>
                         <Label x:Name="WindowTitle" Content="" Style="{DynamicResource windowTitle}"/>
-                        <Image x:Name="Logo" Source="Assets/logo_transparent.png" Margin="2,0,0,1" HorizontalAlignment="Left" />
+                        <Image x:Name="Logo" Source="Assets/logo.png" Margin="2,0,0,1" HorizontalAlignment="Left" />
                         <Button Content="&#xE711;" Style="{DynamicResource windowButton}" Margin="1,1,3,0" Click="CloseButton_Click"/>
                     </Grid>
                 </Border>
