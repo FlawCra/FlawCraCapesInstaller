@@ -22,14 +22,19 @@ namespace Cloaks
         private readonly Animator animator = new Animator();
 
         // Updater 
-        private static readonly string VERSION_LINK = "https://api.github.com/repos/FlawCra/FlawCraCapesInstaller/releases/latest";
+        private static readonly string VERSION_LINK =
+            "https://api.github.com/repos/FlawCra/FlawCraCapesInstaller/releases/latest";
 
         // Hosts
-        private static readonly string HOSTS_PATH = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts");
+        private static readonly string HOSTS_PATH =
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers/etc/hosts");
 
         // Frame Link Colors
         private static readonly Color HighlightColor = Color.FromArgb(0xFF, 0x43, 0x43, 0x43);
         private static readonly Color DarkColor = Color.FromArgb(0xFF, 0x1C, 0x1C, 0x1C);
+
+        // Log Dir
+        private static readonly string LOG_DIR = Environment.GetEnvironmentVariable("APPDATA") + "\\FCCapes\\logs";
 
         AutoResetEvent updateHandle = new AutoResetEvent(false);
 
@@ -41,6 +46,10 @@ namespace Cloaks
                 Close();
                 Environment.Exit(0);
             }
+
+            // Ensure Log Directory and clear latest
+            Directory.CreateDirectory(LOG_DIR);
+            File.WriteAllText(LOG_DIR + "\\latest.log", "");
 
             try
             {
@@ -67,7 +76,13 @@ namespace Cloaks
 
         private void ThrowError(Exception ex, string action)
         {
-            DialogueBox.ShowError("FC Capes Error!", "FlawCra Capes has encountered an error while " + action + ". Please send the error message below to the Discord server.\n\n" + ex.Message + "\nError source: " + ex.Source, this);
+            // Write Logs
+            File.WriteAllText(LOG_DIR + "\\latest.log", ex + "\n");
+
+            DialogueBox.ShowError("FC Capes Error!",
+                "FC Capes has encountered an error while " + action +
+                ". Please post the error message below to the issue page on GitHub.\n\n" + ex.Message + "\nError source: " +
+                ex.Source, this);
             Environment.Exit(0);
         }
 
@@ -94,17 +109,20 @@ namespace Cloaks
             string githubVersion = "" + githubResponse.tag_name;
 
             Version currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
-            Version latestVersion = new Version(githubVersion.Substring(0, 1) == "v" ? githubVersion.Substring(1) : githubVersion);
+            Version latestVersion =
+                new Version(githubVersion.Substring(0, 1) == "v" ? githubVersion.Substring(1) : githubVersion);
 
             int versionComapre = currentVersion.CompareTo(latestVersion);
 
-            if (versionComapre > 0 || versionComapre == 0 || (bool)githubResponse.prerelease || (bool)githubResponse.draft)
+            if (versionComapre > 0 || versionComapre == 0 || (bool) githubResponse.prerelease ||
+                (bool) githubResponse.draft)
             {
                 updateHandle.Set();
                 return; // Dont update if the current version is higher (dev build) or equal (up to date)
             }
 
-            bool res = DialogueBox.Show("FC Capes | Update avaliable", "This version of FlawCra Capes is outdated. Please press OK to update.", this);
+            bool res = DialogueBox.Show("FC Capes | Update avaliable",
+                "This version of FlawCra Capes is outdated. Please press OK to update.", this);
 
             if (!res)
             {
@@ -131,7 +149,7 @@ namespace Cloaks
                 File.Move(tempName, fileName);
 
                 // Start new Process and Terminate the running one
-                ProcessStartInfo startInfo = new ProcessStartInfo(fileName) { Verb = "runas" };
+                ProcessStartInfo startInfo = new ProcessStartInfo(fileName) {Verb = "runas"};
                 Process.Start(startInfo);
                 Environment.Exit(0);
             }
@@ -142,7 +160,6 @@ namespace Cloaks
         }
 
         ///* ANIMATION */
-
         private void Cloaks_Loaded(object sender, RoutedEventArgs e)
         {
             animator.Fade(MainBorder);
@@ -206,7 +223,7 @@ namespace Cloaks
 
         private void InstallButton_Click(object sender, RoutedEventArgs e)
         {
-            bool result = DialogueBox.ShowEULA(this);
+            bool result = DialogueBox.ShowTOU(this);
 
             if (!result)
             {
@@ -226,6 +243,7 @@ namespace Cloaks
             {
                 ThrowError(ex, "installing");
             }
+
             taskBarItemInfo.ProgressState = TaskbarItemProgressState.None;
         }
 
@@ -271,12 +289,6 @@ namespace Cloaks
             }
         }
 
-        private bool HostsIsReadonly()
-        {
-            FileInfo file = new FileInfo(HOSTS_PATH);
-            return file.IsReadOnly;
-        }
-
         public static bool IsAdministrator()
         {
             WindowsIdentity identity = WindowsIdentity.GetCurrent();
@@ -288,9 +300,10 @@ namespace Cloaks
         {
             // Filter our all lines with "s.optifine.net" (or old Cloaks+ content) and write the valid lines back
             string OPTIFINE_URL = "s.optifine.net";
-            string OLD_CLOAKS_MARKER = "INSERTED BY CLOAKS+";
+            string OLD_CLOAKS_MARKER = "INSERTED BY FC CAPES";
             var hostsContent = File.ReadAllLines(HOSTS_PATH);
-            var validLines = hostsContent.Where(line => !(line.Contains(OPTIFINE_URL) || line.Contains(OLD_CLOAKS_MARKER)));
+            var validLines =
+                hostsContent.Where(line => !(line.Contains(OPTIFINE_URL) || line.Contains(OLD_CLOAKS_MARKER)));
             File.WriteAllLines(HOSTS_PATH, validLines);
         }
 
@@ -298,20 +311,59 @@ namespace Cloaks
 
         private void InstallCloaks()
         {
+            // Auto change optifine settings to show capes
+            try
+            {
+                string ofOptionsPath = Environment.GetEnvironmentVariable("APPDATA") + "\\.minecraft\\optionsof.txt";
+
+                var ofOptions = File.ReadAllLines(ofOptionsPath);
+                for (int i = 0; i < ofOptions.Length; i++)
+                {
+                    if (ofOptions[i].StartsWith("ofShowCapes"))
+                    {
+                        ofOptions[i] = "ofShowCapes:true";
+                    }
+                }
+
+                File.WriteAllLines(ofOptionsPath, ofOptions);
+            }
+            catch (Exception ex)
+            {
+                ThrowError(ex, "configuring Optifine settings");
+            }
+
+            // Auto change vanilla cape settings to show capes
+            try
+            {
+                string optionsPath = Environment.GetEnvironmentVariable("APPDATA") + "\\.minecraft\\options.txt";
+
+                var options = File.ReadAllLines(optionsPath);
+                for (int i = 0; i < options.Length; i++)
+                {
+                    if (options[i].StartsWith("modelPart_cape"))
+                    {
+                        options[i] = "modelPart_cape:true";
+                    }
+                }
+
+                File.WriteAllLines(optionsPath, options);
+            }
+            catch (Exception ex)
+            {
+                ThrowError(ex, "configuring Minecraft settings");
+            }
+
             // Check if the hosts file exists at all
             if (!File.Exists(HOSTS_PATH))
             {
                 File.WriteAllText(HOSTS_PATH, "\n178.18.243.41 s.optifine.net # LINE INSERTED BY FC CAPES");
-                DialogueBox.Show("FC Capes", "FlawCra Capes successfully installed!", this);
+                DialogueBox.Show("FC Capes", "FC Capes successfully installed!", this);
                 return;
             }
 
-            if (HostsIsReadonly())
-            {
-                File.SetAttributes(HOSTS_PATH, FileAttributes.Normal);
-            }
+            File.SetAttributes(HOSTS_PATH, FileAttributes.Normal);
 
-            string message = "FC Capessuccessfully installed!";
+            string message = "FC Capes successfully installed!";
 
             if (CloaksPlusExists())
             {
@@ -326,8 +378,8 @@ namespace Cloaks
                 hosts.WriteLine("\n178.18.243.41 s.optifine.net # LINE INSERTED BY FC CAPES");
                 DialogueBox.Show("FC Capes", message, this);
             }
-            File.SetAttributes(HOSTS_PATH, FileAttributes.ReadOnly | FileAttributes.System);
 
+            File.SetAttributes(HOSTS_PATH, FileAttributes.ReadOnly | FileAttributes.System);
         }
 
         private void UninstallCloaks()
@@ -340,10 +392,7 @@ namespace Cloaks
                 return;
             }
 
-            if (HostsIsReadonly())
-            {
-                File.SetAttributes(HOSTS_PATH, FileAttributes.Normal);
-            }
+            File.SetAttributes(HOSTS_PATH, FileAttributes.Normal);
 
             RemoveAllInstallations();
             DialogueBox.Show("FC Capes", "FC Capes successfully uninstalled!", this);
